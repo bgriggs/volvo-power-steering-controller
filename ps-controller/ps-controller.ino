@@ -126,7 +126,8 @@ static void rxHeartbeat() {
   while (twai_receive(&message, 0) == ESP_OK) {
     if (message.identifier == 0x1B200002) {
       digitalWrite(LED_BUILTIN, LOW);
-      Serial.printf("CAN1: PS Heartbeat: %.*s\n", message.data_length_code, message.data);
+      Serial.print("CAN1 RX PS:");
+      printCanData(message.data_length_code, message.data);
       _lastPumpHearbeat = millis();
     }
   }
@@ -193,8 +194,9 @@ static void sendControllerStatus(bool isPumpOnline, bool isHaltechOnline) {
   msg[4] = (uint8_t)((_lastPumpSpeed & 0x00FF));
 
   if (CAN_OK == CAN.sendMsgBuf(0x100D0001, 1, 5, msg)) {
-    Serial.println("CAN2: sent status");
-    Serial.printf("CAN2: Status: %.*s\n", 5, msg);
+    //Serial.println("CAN2: sent status");
+    Serial.printf("CAN2: sent status:");
+    printCanData(5, msg);
   } else {
     Serial.println("CAN2: Failed to send status");
   }
@@ -208,22 +210,22 @@ static bool rxHaltechDutyCycle() {
   unsigned char buff[8];
 
   while (CAN_MSGAVAIL == CAN.checkReceive()) {
-    Serial.print("CAN2: Received ");
+    //Serial.print("CAN2: Received ");
 
     CAN.readMsgBuf(&len, buff);
     unsigned long id = CAN.getCanId();
-    Serial.printf("packet with id 0x%x", id); 
-    Serial.printf("CAN2: Data: %.*s\n", len, buff);
-    Serial.println();
+    //Serial.printf("packet with id 0x%x", id); 
+    //printCanData(len, buff);
 
     // IO Box A DPO 1
     // https://www.ptmotorsport.com.au/how-to-get-can-messages-into-haltech-elite-and-nexus-ecus/
     if (id == 0x2D0) {
-      // Duty cycle is in 0:7 – 1:6
-      unsigned short msb = (buff[0] >> 7) & 0x01;
-      unsigned short lowerBits = buff[1] & 0x7F;
-      unsigned short value = (msb << 7) | lowerBits;
-      _dutyCycle = ((double)value) / 10.0;
+      //Serial.printf("packet with id 0x%x", id); 
+      //printCanData(8, buff);
+      _dutyCycle = ((double)buff[0]) / 2.5;
+      //Serial.print("Raw Duty Cycle = ");
+      //Serial.printf(" %02X ", buff[0]);
+      //Serial.printf(" %02X ", buff[1]);
       Serial.print("Duty Cycle = ");
       Serial.println(_dutyCycle); 
       _lastHaltechTs = millis();
@@ -273,4 +275,11 @@ static void sendPumpSpeed(unsigned short speed){
   } else {
     Serial.println("CAN1: Failed send pump speed");
   }
+}
+
+static void printCanData(unsigned char len, unsigned char buff[8]) {
+  for (int i = 0; i < len; i++) {
+      Serial.printf(" %02X", buff[i]);
+  }
+  Serial.println();
 }
