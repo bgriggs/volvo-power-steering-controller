@@ -238,6 +238,7 @@ static void sendControllerStatus(bool isPumpOnline, bool isHaltechOnline) {
 static bool rxHaltechDutyCycle() {
   unsigned char len = 0;
   unsigned char buff[8] = { 0 };
+  bool received = false;
 
   while (CAN_MSGAVAIL == CAN.checkReceive()) {
     //Serial.print("CAN2: Received ");
@@ -266,11 +267,15 @@ static bool rxHaltechDutyCycle() {
       Serial.print("Duty Cycle = ");
       Serial.println(_dutyCycle); 
       _lastHaltechTs = millis();
-      return true;
+
+      // Keep draining rather than returning here, so the MCP2515 buffers
+      // are emptied every pass and _dutyCycle ends up holding the newest
+      // value in the queue rather than the oldest.
+      received = true;
     }
   }
 
-  return false;
+  return received;
 }
 
 static bool getHaltechOnline() {
