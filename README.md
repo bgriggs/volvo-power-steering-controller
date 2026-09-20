@@ -23,3 +23,24 @@ Targets ESP32 with dual CAN bus.
 - https://www.maxxecu.com/webhelp/can_peripheral_control_volvo_powersteering.html
 - https://github.com/NMSTEC/Volvo_EPS_FREE/blob/main/src/main.cpp
 
+
+# Building
+The sketch in `ps-controller/` is built with the Arduino IDE for the ESP32-CAN-X2 board.
+`ps-controller/ps_logic.h` holds the pure controller logic (duty cycle conversion, frame
+packing, online timeouts) with no Arduino or ESP-IDF dependencies, so the same code the
+firmware runs can be compiled and tested on a host.
+
+# Tests
+Host-side unit tests for `ps_logic.h` live in `test/`. They need nothing but a C++17
+compiler, and they do not touch the Arduino build.
+
+```
+make -C test          # build and run
+make -C test clean
+```
+
+On Windows, run them from WSL:
+
+```
+wsl make -C test
+```
