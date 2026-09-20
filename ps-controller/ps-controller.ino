@@ -119,7 +119,11 @@ static void serviceCanBusRecovery() {
     return;
 
   if (status.state != lastState) {
+#if PS_DEBUG_SERIAL
+    // Gated: with no peer on CAN1 this cycles bus-off and recovery
+    // indefinitely, so ungated it would be an unbounded log.
     Serial.printf("CAN1: state %d -> %d\n", (int)lastState, (int)status.state);
+#endif
     lastState = status.state;
   }
 
@@ -156,22 +160,25 @@ void loop() {
     _lastKeepAliveTs = currentTs;
   }
 
-  // Send status update
+  // Both peers have to be up before we command the pump at all. Worked out
+  // before the status send so a fault reports zero on the very first frame
+  // rather than one frame late.
+  bool isCommandingPump = isPumpOnline && isHaltechOnline;
+  _lastPumpSpeed = isCommandingPump ? psConvertDutyCycle(_dutyCycle) : 0;
+
+  // Send status update, reporting what is actually being commanded rather
+  // than the last live values. _dutyCycle itself is left alone: it is the
+  // received ECU value, not ours to clear.
   if ((currentTs - _lastStatusSendTs) >= _statusSendIntervalMs) {
-    sendControllerStatus(isPumpOnline, isHaltechOnline);
+    sendControllerStatus(isPumpOnline, isHaltechOnline,
+                         isCommandingPump ? _dutyCycle : 0.0);
     _lastStatusSendTs = currentTs;
   }
 
-  if (!isPumpOnline || !isHaltechOnline) {
-    // Not commanding the pump, so stop reporting the last speed as though
-    // we were. Picked up by the next status frame.
-    _lastPumpSpeed = 0;
+  if (!isCommandingPump) {
     delay(10);
     return;
-  } 
-
-  // Determine pump speed
-  _lastPumpSpeed = psConvertDutyCycle(_dutyCycle);
+  }
 
   // Send speed to pump every 72ms
   currentTs = millis();
@@ -233,9 +240,9 @@ static void sendPumpKeepAlive() {
 /**
  * @brief  Sends status such as to AIM for a display on CAN 2.
  */
-static void sendControllerStatus(bool isPumpOnline, bool isHaltechOnline) {
+static void sendControllerStatus(bool isPumpOnline, bool isHaltechOnline, double dutyCycle) {
   uint8_t msg[PS_STATUS_FRAME_LEN] = { 0, 0, 0, 0, 0 };
-  psBuildStatusFrame(msg, isPumpOnline, isHaltechOnline, _dutyCycle, _lastPumpSpeed);
+  psBuildStatusFrame(msg, isPumpOnline, isHaltechOnline, dutyCycle, _lastPumpSpeed);
 
   if (CAN_OK == CAN.sendMsgBuf(PS_CAN_ID_STATUS, 1, PS_STATUS_FRAME_LEN, msg)) {
 #if PS_DEBUG_SERIAL
