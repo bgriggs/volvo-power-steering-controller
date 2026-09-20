@@ -4,6 +4,12 @@
 #include "driver/twai.h"
 #include "ps_logic.h"
 
+// Per-frame Serial tracing. At full rate these prints generate a few KB/s
+// against 115200 baud, and a full TX buffer blocks, which shifts the 72 ms
+// pump cadence. Failures, init progress and bus-off state changes are not
+// gated by this and always print. Set to 1 when debugging on the bench.
+#define PS_DEBUG_SERIAL 0
+
 MCP_CAN CAN(CS);
 
 // CAN bring up
@@ -184,8 +190,10 @@ static void rxHeartbeat() {
   twai_message_t message;
   while (twai_receive(&message, 0) == ESP_OK) {
     if (message.identifier == PS_CAN_ID_PUMP_HEARTBEAT) {
+#if PS_DEBUG_SERIAL
       Serial.print("CAN1 RX PS:");
       printCanData(message.data_length_code, message.data);
+#endif
       _lastPumpHearbeat = millis();
     }
   }
@@ -213,8 +221,10 @@ static void sendPumpKeepAlive() {
 
   // Send the message
   if (twai_transmit(&message, pdMS_TO_TICKS(50)) == ESP_OK) {
+#if PS_DEBUG_SERIAL
     Serial.print("CAN1: sent pump keep alive ");
     Serial.println(message.data[0], HEX);
+#endif
   } else {
     Serial.println("CAN1: failed to send pump keep alive");
   }
@@ -228,9 +238,10 @@ static void sendControllerStatus(bool isPumpOnline, bool isHaltechOnline) {
   psBuildStatusFrame(msg, isPumpOnline, isHaltechOnline, _dutyCycle, _lastPumpSpeed);
 
   if (CAN_OK == CAN.sendMsgBuf(PS_CAN_ID_STATUS, 1, PS_STATUS_FRAME_LEN, msg)) {
-    //Serial.println("CAN2: sent status");
+#if PS_DEBUG_SERIAL
     Serial.printf("CAN2: sent status:");
     printCanData(PS_STATUS_FRAME_LEN, msg);
+#endif
   } else {
     Serial.println("CAN2: Failed to send status");
   }
@@ -268,8 +279,10 @@ static bool rxHaltechDutyCycle() {
       //Serial.print("Raw Duty Cycle = ");
       //Serial.printf(" %02X ", buff[0]);
       //Serial.printf(" %02X ", buff[1]);
+#if PS_DEBUG_SERIAL
       Serial.print("Duty Cycle = ");
-      Serial.println(_dutyCycle); 
+      Serial.println(_dutyCycle);
+#endif
       _lastHaltechTs = millis();
 
       // Keep draining rather than returning here, so the MCP2515 buffers
@@ -298,16 +311,20 @@ static void sendPumpSpeed(unsigned short speed){
   psBuildSpeedFrame(message.data, speed);
 
   if (twai_transmit(&message, pdMS_TO_TICKS(100)) == ESP_OK) {
+#if PS_DEBUG_SERIAL
     Serial.print("CAN1: sent pump speed ");
     Serial.println(speed);
+#endif
   } else {
     Serial.println("CAN1: Failed send pump speed");
   }
 }
 
+#if PS_DEBUG_SERIAL
 static void printCanData(unsigned char len, unsigned char buff[8]) {
   for (int i = 0; i < len; i++) {
       Serial.printf(" %02X", buff[i]);
   }
   Serial.println();
 }
+#endif
