@@ -134,6 +134,9 @@ void loop() {
   rxHeartbeat();
   bool isPumpOnline = getPumpOnline();
 
+  // Lit while the pump is talking to us, dark once it goes quiet
+  digitalWrite(LED_BUILTIN, isPumpOnline ? HIGH : LOW);
+
   // Receive haltech data
   rxHaltechDutyCycle();
   bool isHaltechOnline = getHaltechOnline();
@@ -178,11 +181,9 @@ void loop() {
  * @brief  Receives heartbeat message from PS pump on CAN 1.
  */
 static void rxHeartbeat() {
-  digitalWrite(LED_BUILTIN, HIGH);
   twai_message_t message;
   while (twai_receive(&message, 0) == ESP_OK) {
     if (message.identifier == PS_CAN_ID_PUMP_HEARTBEAT) {
-      digitalWrite(LED_BUILTIN, LOW);
       Serial.print("CAN1 RX PS:");
       printCanData(message.data_length_code, message.data);
       _lastPumpHearbeat = millis();
