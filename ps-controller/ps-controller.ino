@@ -237,11 +237,13 @@ static void sendControllerStatus(bool isPumpOnline, bool isHaltechOnline) {
  */
 static bool rxHaltechDutyCycle() {
   unsigned char len = 0;
-  unsigned char buff[8];
+  unsigned char buff[8] = { 0 };
 
   while (CAN_MSGAVAIL == CAN.checkReceive()) {
     //Serial.print("CAN2: Received ");
 
+    // Cleared each pass so a failed read cannot leave a stale length behind.
+    len = 0;
     CAN.readMsgBuf(&len, buff);
     unsigned long id = CAN.getCanId();
     //Serial.printf("packet with id 0x%x", id); 
@@ -250,6 +252,11 @@ static bool rxHaltechDutyCycle() {
     // IO Box A DPO 1
     // https://www.ptmotorsport.com.au/how-to-get-can-messages-into-haltech-elite-and-nexus-ecus/
     if (id == PS_CAN_ID_HALTECH_DPO1) {
+      // Too short to carry the duty byte: reading buff[0] here would
+      // command the pump from whatever was on the stack.
+      if (len < 1)
+        continue;
+
       //Serial.printf("packet with id 0x%x", id); 
       //printCanData(8, buff);
       _dutyCycle = psDecodeHaltechDutyCycle(buff[0]);
