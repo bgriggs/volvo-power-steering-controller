@@ -166,7 +166,7 @@ void loop() {
 
   // Send speed to pump every 72ms
   currentTs = millis();
-  if ((currentTs - _lastPumpSendTs) >= 72) {
+  if ((currentTs - _lastPumpSendTs) >= _pumpSendIntervalMs) {
     _lastPumpSendTs = currentTs;
     sendPumpSpeed(_lastPumpSpeed);
   }
