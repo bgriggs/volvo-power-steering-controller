@@ -8,11 +8,19 @@ Big endian byte order.
 | CAN ID     | Rate (Hz) | Type   | Offset(len) | Variable          | Unit | Factor | Mapping                         |
 |------------|-----------|--------|-------------|-------------------|------|--------|---------------------------------|
 | 0x100D0001 | 5         | ubyte  | 0(1)        | Controller status | 0-4  | 1      | 1 = online                      |
-|            |           |        |             |                   |      |        | 2 = pump & ECU offline          |
+|            |           |        |             |                   |      |        | 2 = pump & ECU offline (unused) |
 |            |           |        |             |                   |      |        | 3 = pump offline                |
 |            |           |        |             |                   |      |        | 4 = ECU offline                 |
 |            |           | ushort | 1(2)        | Pump Percent      | %    | 10     |                                 |
 |            |           | ushort | 3(2)        | Pump value        |      | 1      | 0-6000                          |
+
+Status 2 is no longer emitted. When the ECU goes offline the controller stops the pump
+keep alive on purpose, so the pump falls silent shortly afterwards as a consequence of
+that rather than as a second fault. Reporting 4 keeps a plain ECU dropout from pointing
+at the wrong box. The code is kept in the table because the value is part of the protocol.
+
+Pump Percent and Pump value both read 0 while the controller is not commanding the pump,
+rather than holding the last live values.
 
 # Hardware
 Targets ESP32 with dual CAN bus.

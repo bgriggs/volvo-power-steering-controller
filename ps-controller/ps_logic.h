@@ -105,16 +105,18 @@ inline uint16_t psConvertDutyCycle(double dutyCycle) {
  * @brief  Maps peer online state onto the status code reported to the dash.
  */
 inline uint8_t psStatusCode(bool isPumpOnline, bool isHaltechOnline) {
-  if (isPumpOnline && isHaltechOnline)
-    return PS_STATUS_ONLINE;
-  else if (!isPumpOnline && !isHaltechOnline)
-    return PS_STATUS_PUMP_AND_ECU_OFFLINE;
-  else if (!isPumpOnline)
-    return PS_STATUS_PUMP_OFFLINE;
-  else if (!isHaltechOnline)
+  // The ECU going offline stands the pump down on purpose, so the pump
+  // falling silent afterwards is a consequence of that rather than a second
+  // fault. Reporting the root cause keeps a plain ECU dropout from escalating
+  // into PS_STATUS_PUMP_AND_ECU_OFFLINE and pointing the dash at the wrong box.
+  // That code is therefore no longer emitted.
+  if (!isHaltechOnline)
     return PS_STATUS_ECU_OFFLINE;
-  else
-    return PS_STATUS_UNKNOWN;
+
+  if (!isPumpOnline)
+    return PS_STATUS_PUMP_OFFLINE;
+
+  return PS_STATUS_ONLINE;
 }
 
 /**
