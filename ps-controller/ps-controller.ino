@@ -139,7 +139,7 @@ static bool getPumpOnline() {
  * @brief  Sends the rotating keep alive message to the PS pump on CAN 1.
  */
 static void sendPumpKeepAlive() {
-  twai_message_t message;
+  twai_message_t message = {};
   message.identifier = PS_CAN_ID_PUMP_KEEP_ALIVE;
   message.extd = 1;
   message.rtr = 0;
@@ -218,7 +218,7 @@ static bool getHaltechOnline() {
  * @brief  Sends pump value to the power steering pump on CAN 1.
  */
 static void sendPumpSpeed(unsigned short speed){
-  twai_message_t message;
+  twai_message_t message = {};
   message.identifier = PS_CAN_ID_PUMP_SPEED;
   message.extd = 1;
   message.rtr = 0;
