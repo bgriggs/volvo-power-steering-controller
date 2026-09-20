@@ -6,6 +6,9 @@
 
 MCP_CAN CAN(CS);
 
+// CAN bring up
+const unsigned int _canInitMaxAttempts = 5;
+
 unsigned long _lastPumpHearbeat = 0;
 
 // Keep alive fields
@@ -33,10 +36,30 @@ void setup() {
   Serial.println("Starting...");
   pinMode(LED_BUILTIN, OUTPUT);
 
-  initCanBus();
+  // Retry a failed bring up, then reboot rather than run with dead CAN.
+  for (unsigned int attempt = 1; ; attempt++) {
+    if (initCanBus())
+      break;
+
+    if (attempt >= _canInitMaxAttempts) {
+      Serial.println("CAN init failed, restarting");
+      Serial.flush();
+      ESP.restart();
+    }
+
+    Serial.printf("CAN init attempt %u failed\n", attempt);
+    delay(1000);
+  }
 }
 
 bool initCanBus() {
+  // Tear down anything a previous attempt left behind, otherwise the
+  // reinstall below returns ESP_ERR_INVALID_STATE and every retry fails.
+  // Uninstall only works from the stopped state, so stop first. Both
+  // calls fail harmlessly when there is nothing to tear down.
+  twai_stop();
+  twai_driver_uninstall();
+
   Serial.println("Initializing builtin CAN peripheral");
   twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT((gpio_num_t)CAN1_TX, (gpio_num_t)CAN1_RX, TWAI_MODE_NORMAL);
   twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
@@ -68,7 +91,7 @@ bool initCanBus() {
     Serial.println("CAN2 interface started");
   } else {
     Serial.println("Failed to start CAN2");
-    while (1);
+    return false;
   }
 
   return true;
