@@ -154,6 +154,9 @@ void loop() {
   }
 
   if (!isPumpOnline || !isHaltechOnline) {
+    // Not commanding the pump, so stop reporting the last speed as though
+    // we were. Picked up by the next status frame.
+    _lastPumpSpeed = 0;
     delay(10);
     return;
   } 
