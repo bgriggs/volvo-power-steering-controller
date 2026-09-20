@@ -7,7 +7,7 @@ The controller will send status back on CAN 2 (same as Haltech). This can be rec
 Big endian byte order.
 | CAN ID     | Rate (Hz) | Type   | Offset(len) | Variable          | Unit | Factor | Mapping                         |
 |------------|-----------|--------|-------------|-------------------|------|--------|---------------------------------|
-| 0x100D0001 | 10        | ubyte  | 0(1)        | Controller status | 0-4  | 1      | 1 = online                      |
+| 0x100D0001 | 5         | ubyte  | 0(1)        | Controller status | 0-4  | 1      | 1 = online                      |
 |            |           |        |             |                   |      |        | 2 = pump & ECU offline          |
 |            |           |        |             |                   |      |        | 3 = pump offline                |
 |            |           |        |             |                   |      |        | 4 = ECU offline                 |
