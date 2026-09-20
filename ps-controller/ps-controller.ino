@@ -42,7 +42,7 @@ bool initCanBus() {
   twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
   twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
-  if(twai_driver_install(&g_config, &t_config, &f_config) == ESP_OK) {
+  if (twai_driver_install(&g_config, &t_config, &f_config) == ESP_OK) {
     Serial.println("CAN1 Driver initialized");
   } else {
     Serial.println("Failed to initialze CAN1 driver");
@@ -74,8 +74,38 @@ bool initCanBus() {
   return true;
 }
 
+/**
+ * @brief  Recovers CAN 1 from a bus-off condition.
+ *
+ * Bus-off is latching: after enough transmit errors the TWAI controller stops
+ * participating in the bus entirely and stays that way until recovery is
+ * initiated. Recovery completes after 128 occurrences of 11 recessive bits,
+ * which leaves the driver stopped, so it then has to be restarted.
+ */
+static void serviceCanBusRecovery() {
+  static twai_state_t lastState = TWAI_STATE_RUNNING;
+
+  twai_status_info_t status;
+  if (twai_get_status_info(&status) != ESP_OK)
+    return;
+
+  if (status.state != lastState) {
+    Serial.printf("CAN1: state %d -> %d\n", (int)lastState, (int)status.state);
+    lastState = status.state;
+  }
+
+  if (status.state == TWAI_STATE_BUS_OFF) {
+    twai_initiate_recovery();
+  } else if (status.state == TWAI_STATE_STOPPED) {
+    twai_start();
+  }
+}
+
 void loop() {
   unsigned long currentTs = millis();
+
+  // Keep CAN 1 out of a latched bus-off state
+  serviceCanBusRecovery();
 
   // Send pump keep alive every 2 seconds
   if ((currentTs - _lastKeepAliveTs) >= _keepAliveIntervalMs) {
