@@ -130,12 +130,6 @@ void loop() {
   // Keep CAN 1 out of a latched bus-off state
   serviceCanBusRecovery();
 
-  // Send pump keep alive every 2 seconds
-  if ((currentTs - _lastKeepAliveTs) >= _keepAliveIntervalMs) {
-    sendPumpKeepAlive();
-    _lastKeepAliveTs = currentTs;
-  }
-
   // Receive pump data
   rxHeartbeat();
   bool isPumpOnline = getPumpOnline();
@@ -143,6 +137,15 @@ void loop() {
   // Receive haltech data
   rxHaltechDutyCycle();
   bool isHaltechOnline = getHaltechOnline();
+
+  // Send pump keep alive every 2 seconds, but only while the ECU is online.
+  // With no duty cycle to act on there is nothing useful to command, so the
+  // keep alive is dropped deliberately and the pump falls back to its own
+  // failsafe. It resumes on the next pass once the ECU returns.
+  if (isHaltechOnline && (currentTs - _lastKeepAliveTs) >= _keepAliveIntervalMs) {
+    sendPumpKeepAlive();
+    _lastKeepAliveTs = currentTs;
+  }
 
   // Send status update
   if ((currentTs - _lastStatusSendTs) >= _statusSendIntervalMs) {
