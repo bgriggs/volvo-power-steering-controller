@@ -77,11 +77,21 @@ inline double psDecodeHaltechDutyCycle(uint8_t raw) {
 }
 
 /**
+ * @brief  Clamps a duty cycle percentage to the range the pump can be commanded to.
+ *
+ * The Haltech decode can produce up to 102%, so this is not just defensive.
+ */
+inline double psClampDutyCycle(double dutyCycle) {
+  if (dutyCycle > 100.0) return 100.0;
+  if (dutyCycle < 0.0) return 0.0;
+  return dutyCycle;
+}
+
+/**
  * @brief  Gets the pump value from duty cycle percentage where 1 is full on.
  */
 inline uint16_t psConvertDutyCycle(double dutyCycle) {
-  if (dutyCycle > 100.0) dutyCycle = 100.0; // clamp to max
-  if (dutyCycle < 0.0) dutyCycle = 0.0;     // clamp to min
+  dutyCycle = psClampDutyCycle(dutyCycle);
 
   if (dutyCycle == 0.0)
     return 0;
@@ -119,8 +129,9 @@ inline void psBuildStatusFrame(uint8_t out[PS_STATUS_FRAME_LEN],
                                uint16_t pumpSpeed) {
   out[0] = psStatusCode(isPumpOnline, isHaltechOnline);
 
-  // Duty Cycle
-  uint16_t value = (uint16_t)(dutyCycle * 10);
+  // Duty Cycle. Clamped the same way the pump command is, so the reported
+  // percent and the reported pump value cannot disagree at the top of the range.
+  uint16_t value = (uint16_t)(psClampDutyCycle(dutyCycle) * 10);
   out[1] = (uint8_t)((value & 0xFF00) >> 8);
   out[2] = (uint8_t)((value & 0x00FF));
 

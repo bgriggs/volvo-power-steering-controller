@@ -67,14 +67,19 @@ TEST(status_frame_encodes_duty_cycle_big_endian_with_factor_10) {
   EXPECT_EQ(0xE8, frame[2]);
 }
 
-TEST(status_frame_reports_duty_cycle_above_100_percent_unclamped) {
-  // Current behavior: the status frame reports the raw decoded duty cycle,
-  // while the pump command clamps it to 100%. A Haltech byte of 0xFF shows up
-  // here as 102.0%.
+TEST(status_frame_clamps_the_reported_duty_cycle) {
+  // The frame reports what the pump was actually commanded, so a Haltech
+  // byte of 0xFF (102.0%) is reported as 100.0%. This keeps the reported
+  // percent and the reported pump value from disagreeing.
   uint8_t frame[PS_STATUS_FRAME_LEN];
+
   psBuildStatusFrame(frame, true, true, 102.0, 1);
-  EXPECT_EQ(0x03, frame[1]); // 1020 = 0x03FC
-  EXPECT_EQ(0xFC, frame[2]);
+  EXPECT_EQ(0x03, frame[1]); // 1000 = 0x03E8, not 1020
+  EXPECT_EQ(0xE8, frame[2]);
+
+  psBuildStatusFrame(frame, true, true, -5.0, 0);
+  EXPECT_EQ(0x00, frame[1]);
+  EXPECT_EQ(0x00, frame[2]);
 }
 
 TEST(status_frame_truncates_fractional_duty_cycle_tenths) {

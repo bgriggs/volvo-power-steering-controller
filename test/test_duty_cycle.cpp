@@ -25,11 +25,27 @@ TEST(haltech_decode_reaches_full_scale_at_250) {
 }
 
 TEST(haltech_decode_can_exceed_100_percent) {
-  // Counts 251-255 decode above 100%. Current behavior: the decode does not
-  // clamp, so the raw percentage is what reaches the status frame, while
-  // psConvertDutyCycle clamps before commanding the pump.
+  // Counts 251-255 decode above 100%. The decode itself does not clamp;
+  // psClampDutyCycle does, on both the pump command and the status frame.
   EXPECT_NEAR(100.4, psDecodeHaltechDutyCycle(251), 1e-9);
   EXPECT_NEAR(102.0, psDecodeHaltechDutyCycle(255), 1e-9);
+}
+
+// ---------------------------------------------------------------------------
+// psClampDutyCycle: shared by the pump command and the status frame
+// ---------------------------------------------------------------------------
+
+TEST(clamp_passes_the_valid_range_through_untouched) {
+  EXPECT_NEAR(0.0, psClampDutyCycle(0.0), 1e-9);
+  EXPECT_NEAR(50.0, psClampDutyCycle(50.0), 1e-9);
+  EXPECT_NEAR(100.0, psClampDutyCycle(100.0), 1e-9);
+}
+
+TEST(clamp_limits_both_ends) {
+  EXPECT_NEAR(100.0, psClampDutyCycle(100.0001), 1e-9);
+  EXPECT_NEAR(100.0, psClampDutyCycle(102.0), 1e-9); // highest a Haltech byte decodes to
+  EXPECT_NEAR(0.0, psClampDutyCycle(-0.0001), 1e-9);
+  EXPECT_NEAR(0.0, psClampDutyCycle(-10.0), 1e-9);
 }
 
 // ---------------------------------------------------------------------------
