@@ -33,10 +33,35 @@ Targets ESP32 with dual CAN bus.
 
 
 # Building
-The sketch in `ps-controller/` is built with the Arduino IDE for the ESP32-CAN-X2 board.
-`ps-controller/ps_logic.h` holds the pure controller logic (duty cycle conversion, frame
-packing, online timeouts) with no Arduino or ESP-IDF dependencies, so the same code the
-firmware runs can be compiled and tested on a host.
+The sketch in `ps-controller/` builds two ways, from the same files. Nothing is
+duplicated: the PlatformIO project points `src_dir` at the sketch folder.
+
+## Arduino IDE
+Select **AutosportLabs ESP-CAN-X2** (board support comes from Espressif's
+`package_esp32_index.json`) and build `ps-controller/ps-controller.ino`.
+
+## PlatformIO
+```
+pio run              # build
+pio run -t upload    # build and flash
+pio device monitor   # serial at 115200
+```
+Or use the PlatformIO VS Code extension, which picks up `platformio.ini`.
+
+This uses the [pioarduino](https://github.com/pioarduino/platform-espressif32)
+platform fork rather than the registry `espressif32`. Espressif no longer maintains
+official PlatformIO support, so the registry platform is pinned to arduino-esp32
+2.0.17, which predates the `aslcanx2` board variant and is a different ESP-IDF
+generation (4.4 rather than 5.x). That matters here because the firmware leans on the
+TWAI driver, so building against the same 3.x core the Arduino IDE flashes keeps the
+two toolchains producing equivalent firmware.
+
+Set `PS_DEBUG_SERIAL` to 1 at the top of the sketch for per-frame serial tracing.
+Failures, init progress and CAN 1 bus-off transitions always print.
+
+`ps-controller/ps_logic.h` holds the pure controller logic (duty cycle conversion,
+frame packing, online timeouts) with no Arduino or ESP-IDF dependencies, so the same
+code the firmware runs can be compiled and tested on a host.
 
 # Tests
 Host-side unit tests for `ps_logic.h` live in `test/`. They need nothing but a C++17
